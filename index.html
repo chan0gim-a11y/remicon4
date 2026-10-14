@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>레미콘운행일지</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#6b7d6b">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Malgun Gothic', sans-serif; }
+body { background-color: #f4f4f2; color: #333; padding: 8px; max-width: 500px; margin: 0 auto; }
+.header { background: #6b7d6b; color: #fff; text-align: center; padding: 10px; font-size: 20px; font-weight: bold; border-radius: 4px; margin-bottom: 8px; }
+.tab-bar { display: flex; gap: 4px; margin-bottom: 8px; }
+.tab-btn { flex: 1; padding: 10px 4px; background: #e8e8e5; color: #555; border: none; font-size: 14px; font-weight: bold; border-radius: 4px; cursor: pointer; }
+.tab-btn.active { background: #6b7d6b; color: #fff; }
+.cal-nav { display: flex; justify-content: space-between; align-items: center; background: #7a8b99; color: #fff; padding: 6px 12px; font-size: 18px; font-weight: bold; border-radius: 4px; margin-bottom: 6px; }
+.cal-nav button { background: none; border: none; color: #fff; font-size: 20px; cursor: pointer; padding: 0 10px; }
+.calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; background: #c8d0c8; padding: 2px; border-radius: 4px; margin-bottom: 8px; }
+.day-header { background: #8a9a8a; text-align: center; padding: 4px 0; font-size: 14px; font-weight: bold; color: #fff; }
+.day-header.sun, .day-header.sat { background: #b8a0a0; }
+.day-cell { background: #fff; color: #333; min-height: 48px; padding: 2px; font-size: 14px; font-weight: bold; cursor: pointer; position: relative; }
+.day-cell.other-month { background: #f0f0ee; color: #bbb; }
+.day-cell.sun, .day-cell.sat { color: #b85c5c; }
+.day-cell.today { outline: 2px solid #d4a84a; outline-offset: -2px; }
+.day-cell .rot-badge { position: absolute; bottom: 2px; right: 2px; background: #6b7d6b; color: #fff; font-size: 10px; padding: 1px 3px; border-radius: 2px; }
+.summary-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; font-size: 13px; text-align: center; font-weight: bold; }
+.summary-table td { border: 1px solid #ddd; padding: 5px 2px; }
+.bg-green-head { background: #8a9a8a; color: #fff; }
+.bg-green-val { background: #c8d0c8; color: #333; font-size: 15px; }
+.bg-cyan-head { background: #8a9ab0; color: #fff; }
+.bg-cyan-val { background: #c8d0dc; color: #333; font-size: 15px; }
+.bg-purple-head { background: #9a8aa8; color: #fff; }
+.bg-purple-val { background: #d0c8d8; color: #333; font-size: 14px; }
+.modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 1000; justify-content: center; align-items: center; }
+.modal.show { display: flex; }
+.modal-content { background: #fff; width: 95%; max-width: 420px; border-radius: 8px; padding: 15px; color: #333; max-height: 90vh; overflow-y: auto; }
+.modal-header { font-size: 20px; font-weight: bold; color: #3a4a5a; text-align: center; margin-bottom: 12px; }
+.form-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; font-size: 16px; font-weight: bold; }
+.form-row label { width: 38%; text-align: right; padding-right: 10px; color: #3a4a5a; }
+.form-row input { width: 60%; padding: 8px; font-size: 16px; font-weight: bold; background: #fff; color: #333; border: 1px solid #c0c8d0; border-radius: 4px; text-align: center; }
+.form-row input:focus { outline: none; border-color: #6b8ba8; box-shadow: 0 0 0 3px rgba(107,139,168,0.15); }
+.form-memo-box { width: 100%; margin-top: 6px; }
+.form-memo-box label { display: block; width: 100%; text-align: left; margin-bottom: 4px; font-weight: bold; color: #3a4a5a; }
+.form-memo-box textarea { width: 100%; height: 80px; padding: 10px; font-size: 15px; font-weight: bold; background: #fff; color: #333; border: 1px solid #c0c8d0; border-radius: 4px; resize: none; }
+.form-memo-box textarea:focus { outline: none; border-color: #6b8ba8; box-shadow: 0 0 0 3px rgba(107,139,168,0.15); }
+.btn-group { display: flex; gap: 8px; margin-top: 12px; }
+.btn-save { flex: 1; background: #6b8ba8; color: #fff; padding: 12px; border: none; font-size: 16px; font-weight: bold; border-radius: 4px; cursor: pointer; }
+.btn-close { flex: 1; background: #9aa5b0; color: #fff; padding: 12px; border: none; font-size: 16px; font-weight: bold; border-radius: 4px; cursor: pointer; }
+.btn-danger { flex: 1; background: #b85c5c; color: #fff; padding: 12px; border: none; font-size: 16px; font-weight: bold; border-radius: 4px; cursor: pointer; }
+.page-section { display: none !important; }
+.page-section.active { display: block !important; }
+.table-responsive { overflow-x: auto; background: #fff; border-radius: 4px; }
+.data-table { width: 100%; border-collapse: collapse; color: #333; font-size: 12px; white-space: nowrap; }
+.data-table th, .data-table td { border: 1px solid #ddd; padding: 6px 8px; text-align: center; }
+.data-table th { background: #eaf0ee; color: #3a4a5a; font-weight: bold; }
+.data-table tfoot td { background: #8a9a8a; color: #fff; font-weight: bold; }
+.setting-container { background: #fff; padding: 12px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+.setting-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; font-size: 15px; font-weight: bold; }
+.setting-row label { width: 38%; text-align: right; padding-right: 10px; color: #3a4a5a; }
+.setting-row input { width: 60%; padding: 8px; font-size: 15px; font-weight: bold; background: #fff; color: #333; border: 1px solid #c0c8d0; border-radius: 4px; text-align: center; }
+.setting-row input:focus { outline: none; border-color: #6b8ba8; box-shadow: 0 0 0 3px rgba(107,139,168,0.15); }
+.setting-row input[readonly] { background: #eef2f6; color: #6b7a8a; border-color: #d0d8e0; }
+.setting-hint { font-size: 12px; color: #7a8b99; margin-top: -6px; margin-bottom: 8px; padding-left: 40%; }
+.month-bar { display: flex; overflow-x: auto; gap: 4px; padding: 6px 0; margin-top: 8px; }
+.month-bar button { padding: 8px 12px; background: #e8e8e5; color: #555; border: none; border-radius: 4px; font-weight: bold; flex-shrink: 0; cursor: pointer; }
+.month-bar button.active { background: #6b7d6b; color: #fff; }
+.excel-btn, .backup-btn, .restore-btn, .reset-btn { width: 100%; color: #fff; padding: 10px; border: none; font-size: 15px; font-weight: bold; border-radius: 4px; margin-top: 6px; cursor: pointer; }
+.excel-btn { background: #6b8ba8; }
+.backup-btn { background: #6b8ba8; }
+.restore-btn { background: #c8a45c; }
+.reset-btn { background: #b85c5c; }
+.empty-msg { text-align: center; color: #999; padding: 20px; font-size: 14px; }
+</style>
+</head>
+<body>
+<div class="header">레미콘운행일지</div>
+<div class="tab-bar">
+<button class="tab-btn active" id="btn-cal">📅 일보/달력</button>
+<button class="tab-btn" id="btn-list">📋 월별리스트</button>
+<button class="tab-btn" id="btn-setting">⚙️ 설정</button>
+</div>
+<div id="tab-cal" class="page-section active">
+<div class="cal-nav">
+<button id="btn-prev-m">◀</button>
+<span id="cal-title">2026년 10월</span>
+<button id="btn-next-m">▶</button>
+</div>
+<div class="calendar-grid" id="calendar-grid"></div>
+<table class="summary-table">
+<tr>
+<td class="bg-green-head">근무일</td><td class="bg-green-head">회 전</td><td class="bg-green-head">운행km</td>
+<td class="bg-green-head">총주유</td><td class="bg-green-head">Km/L</td><td class="bg-green-head">남은주유량(L)</td>
+</tr>
+<tr>
+<td class="bg-green-val" id="sum-workdays">0</td><td class="bg-green-val" id="sum-rounds">0</td>
+<td class="bg-green-val" id="sum-km">0</td><td class="bg-green-val" id="sum-fuel">0</td>
+<td class="bg-green-val" id="sum-kml">0.0</td><td class="bg-green-val" id="sum-remain-l">0.0</td>
+</tr>
+<tr>
+<td class="bg-cyan-head">폐수</td><td class="bg-cyan-head">장시간</td><td class="bg-cyan-head">조출</td>
+<td class="bg-cyan-head">야간</td><td class="bg-cyan-head" id="sum-label-1">위수</td><td class="bg-cyan-head" id="sum-label-2">리프트</td>
+</tr>
+<tr>
+<td class="bg-cyan-val" id="sum-waste">0</td><td class="bg-cyan-val" id="sum-wait">0</td>
+<td class="bg-cyan-val" id="sum-early">0</td><td class="bg-cyan-val" id="sum-night">0</td>
+<td class="bg-cyan-val" id="sum-custom1">0</td><td class="bg-cyan-val" id="sum-custom2">0</td>
+</tr>
+<tr>
+<td class="bg-cyan-head" colspan="3" id="sum-label-3">기타</td><td class="bg-cyan-head" colspan="3" id="sum-label-4">새항목</td>
+</tr>
+<tr>
+<td class="bg-cyan-val" colspan="3" id="sum-custom3">0</td><td class="bg-cyan-val" colspan="3" id="sum-custom4">0</td>
+</tr>
+</table>
+<table class="summary-table">
+<tr>
+<td class="bg-purple-head">운반비</td><td class="bg-purple-head">수당합계</td>
+<td class="bg-purple-head">유류대</td><td class="bg-purple-head">총합계</td>
+</tr>
+<tr>
+<td class="bg-purple-val" id="sum-transport">0</td><td class="bg-purple-val" id="sum-allowance">0</td>
+<td class="bg-purple-val" id="sum-rem-fuel">0</td><td class="bg-purple-val" id="sum-total">0</td>
+</tr>
+</table>
+</div>
+<div id="tab-list" class="page-section">
+<div class="cal-nav">
+<button id="btn-prev-y">◀</button>
+<span id="list-year-title">2026년 리스트</span>
+<button id="btn-next-y">▶</button>
+</div>
+<div class="table-responsive">
+<table class="data-table">
+<thead><tr>
+<th>날짜</th><th>회전</th><th>거리</th><th>주유</th><th>폐수</th><th>장시간</th>
+<th>조출</th><th>야간</th><th id="th-custom1">위수</th><th id="th-custom2">리프트</th>
+<th id="th-custom3">기타</th><th id="th-custom4">새항목</th>
+<th>수당합계</th><th>운반비</th><th>유류대</th><th>총합계</th><th>간단메모</th>
+</tr></thead>
+<tbody id="list-tbody"></tbody>
+<tfoot id="list-tfoot"></tfoot>
+</table>
+</div>
+<div class="month-bar" id="month-bar"></div>
+<button class="excel-btn" id="btn-excel">📥 현재 월 엑셀(CSV) 저장</button>
+</div>
+<div id="tab-setting" class="page-section">
+<div class="setting-container">
+<div class="modal-header">설정 및 데이터 관리</div>
+<div class="setting-row"><label>회사명</label><input type="text" id="set-company"></div>
+<div class="setting-row"><label>차량사번</label><input type="text" id="set-car"></div>
+<div class="setting-row"><label>회전단가</label><input type="number" id="set-rot-price" min="0" step="1"></div>
+<div class="setting-row"><label>폐수단가</label><input type="number" id="set-waste-price" readonly></div>
+<div class="setting-row"><label>장시간</label><input type="number" id="set-wait-price" readonly></div>
+<div class="setting-row"><label>조출</label><input type="number" id="set-early-price" readonly></div>
+<div class="setting-row"><label>야간</label><input type="number" id="set-night-price" readonly></div>
+<div class="setting-row"><input type="text" id="set-label-1" placeholder="항목명" style="width:38%;text-align:right;padding-right:10px;"><input type="number" id="set-price-1" min="0" step="1" style="width:60%;"></div>
+<div class="setting-row"><input type="text" id="set-label-2" placeholder="항목명" style="width:38%;text-align:right;padding-right:10px;"><input type="number" id="set-price-2" min="0" step="1" style="width:60%;"></div>
+<div class="setting-row"><input type="text" id="set-label-3" placeholder="항목명" style="width:38%;text-align:right;padding-right:10px;"><input type="number" id="set-price-3" min="0" step="1" style="width:60%;"></div>
+<div class="setting-row"><input type="text" id="set-label-4" placeholder="항목명" style="width:38%;text-align:right;padding-right:10px;"><input type="number" id="set-price-4" min="0" step="1" style="width:60%;"></div>
+<div class="setting-row"><label>주유단가</label><input type="number" id="set-fuel-price" min="0" step="1"></div>
+<div class="setting-row"><label>지원유류(L/km)</label><input type="number" id="set-fuel-per-km" min="0" step="0.01"></div>
+<button class="btn-save" style="width:100%;margin-top:10px;" id="btn-save-settings">설정 저장</button>
+<button class="backup-btn" id="btn-backup">💾 데이터 백업 (파일 저장)</button>
+<button class="restore-btn" id="btn-restore-trigger">📂 데이터 복원 (업로드)</button>
+<input type="file" id="restore-file" style="display:none" accept=".json">
+<button class="reset-btn" id="btn-reset">🗑️ 전체 데이터 초기화</button>
+</div>
+</div>
+<div class="modal" id="modal">
+<div class="modal-content">
+<div class="modal-header">일보 작성</div>
+<div class="form-row"><label>날짜</label><input type="text" id="form-date" readonly></div>
+<div class="form-row"><label>회전수</label><input type="number" id="form-rot" placeholder="0" min="0" step="1"></div>
+<div class="form-row"><label>운행거리</label><input type="number" id="form-km" placeholder="0" min="0" step="1"></div>
+<div class="form-row"><label>디젤주유</label><input type="number" id="form-fuel" placeholder="0" min="0" step="1"></div>
+<div class="form-row"><label>폐수</label><input type="number" id="form-waste" placeholder="0" min="0" step="1"></div>
+<div class="form-row"><label>장시간</label><input type="number" id="form-wait" placeholder="0" min="0" step="1"></div>
+<div class="form-row"><label>조출</label><input type="number" id="form-early" placeholder="0" min="0" step="1"></div>
+<div class="form-row"><label>야간</label><input type="number" id="form-night" placeholder="0" min="0" step="1"></div>
+<div class="form-row"><label id="label-form-custom1">위수</label><input type="number" id="form-custom1" placeholder="0" min="0" step="1"></div>
+<div class="form-row"><label id="label-form-custom2">리프트</label><input type="number" id="form-custom2" placeholder="0" min="0" step="1"></div>
+<div class="form-row"><label id="label-form-custom3">기타</label><input type="number" id="form-custom3" placeholder="0" min="0" step="1"></div>
+<div class="form-row"><label id="label-form-custom4">새항목</label><input type="number" id="form-custom4" placeholder="0" min="0" step="1"></div>
+<div class="form-memo-box"><label>간단메모</label><textarea id="form-memo"></textarea></div>
+<div class="btn-group">
+<button class="btn-save" id="btn-save-data">저장</button>
+<button class="btn-danger" id="btn-delete-data">삭제</button>
+<button class="btn-close" id="btn-close-modal">취소</button>
+</div>
+</div>
+</div>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  var DB_KEY = 'remicon_db_v1';
+  var SETTINGS_KEY = 'remicon_settings_v1';
+  var HALF_RATE_FIELDS = ['waste', 'early', 'night'];
+  var SAME_AS_ROT_FIELDS = ['wait'];
+  var NUMBER_FIELDS = ['rot','km','fuel','waste','wait','early','night','custom1','custom2','custom3','custom4'];
+
+  var DEFAULT_SETTINGS = {
+    company: '', car: '', rotPrice: 0,
+    wastePrice: 0, waitPrice: 0, earlyPrice: 0, nightPrice: 0,
+    customPrices: [0, 0, 0, 0],
+    fuelPrice: 0, fuelPerKm: 0.58,
+    monthLabels: {}
+  };
+  var currentYear = 2026, currentMonth = 10;
+
+  // 이전 버전(위수/리프트/기타) 데이터를 새 항목(custom1~3)으로 변환
+  function migrateData(db, settings) {
+    var map = { outskirt: 'custom1', lift: 'custom2', etc: 'custom3' };
+    var months = {};
+    Object.keys(db).forEach(function(ds) {
+      var it = db[ds];
+      if (!it) return;
+      var changed = false;
+      for (var o in map) {
+        if (it[o] !== undefined) {
+          if (num(it[map[o]]) === 0) it[map[o]] = num(it[o]);
+          delete it[o];
+          changed = true;
+        }
+      }
+      if (changed) months[ds.slice(0, 7)] = true;
+    });
+    if (!settings.customPrices) settings.customPrices = [0,0,0,0];
+    var cp = settings.customPrices;
+    if (!cp[0] && !cp[1] && !cp[2]) {
+      if (settings.outPrice) cp[0] = num(settings.outPrice);
+      if (settings.liftPrice) cp[1] = num(settings.liftPrice);
+      if (settings.etcPrice) cp[2] = num(settings.etcPrice);
+    }
+    if (!settings.monthLabels) settings.monthLabels = {};
+    var lab = { custom1: settings.labelOutskirt, custom2: settings.labelLift, custom3: settings.labelEtc };
+    Object.keys(months).forEach(function(mk) {
+      var ml = settings.monthLabels[mk] || {};
+      for (var c in lab) {
+        if (lab[c] && !ml[c]) ml[c] = lab[c];
+      }
+      settings.monthLabels[mk] = ml;
+    });
+    ['outPrice','liftPrice','etcPrice','labelOutskirt','labelLift','labelEtc'].forEach(function(k) { delete settings[k]; });
+  }
+
+  function loadFromStorage() {
+    var db = {}, settings = {};
+    for (var key in DEFAULT_SETTINGS) settings[key] = DEFAULT_SETTINGS[key];
+    var rawDb = localStorage.getItem(DB_KEY) || localStorage.getItem('remicon_db');
+    var rawSet = localStorage.getItem(SETTINGS_KEY) || localStorage.getItem('remicon_settings');
+    if (rawDb) { try { db = JSON.parse(rawDb) || {}; } catch(e){} }
+    if (rawSet) {
+      try {
+        var parsed = JSON.parse(rawSet);
+        for (var k in parsed) if (parsed[k] !== undefined) settings[k] = parsed[k];
+      } catch(e){}
+    }
+    settings.wastePrice = Math.floor((settings.rotPrice || 0) * 0.5);
+    settings.earlyPrice = Math.floor((settings.rotPrice || 0) * 0.5);
+    settings.nightPrice = Math.floor((settings.rotPrice || 0) * 0.5);
+    settings.waitPrice = settings.rotPrice || 0;
+    if (!settings.fuelPerKm) settings.fuelPerKm = 0.58;
+    if (!settings.customPrices) settings.customPrices = [0,0,0,0];
+    if (!settings.monthLabels) settings.monthLabels = {};
+    migrateData(db, settings);
+    localStorage.setItem(DB_KEY, JSON.stringify(db));
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+    return { db: db, settings: settings };
+  }
+  var state = loadFromStorage();
+  var db = state.db, settings = state.settings;
+
+  function pad2(n) { return String(n).padStart(2, '0'); }
+  function dateStr(y,m,d) { return y + '-' + pad2(m) + '-' + pad2(d); }
+  function num(v) { var n = Number(v); return isFinite(n) && n >= 0 ? Math.floor(n) : 0; }
+  function numF(v) { var n = Number(v); return isFinite(n) && n >= 0 ? n : 0; }
+  function toLocale(n) { return (Number(n) || 0).toLocaleString(); }
+  function $(id) { return document.getElementById(id); }
+
+  function saveDb() { localStorage.setItem(DB_KEY, JSON.stringify(db)); }
+  function saveSettings() { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); }
+
+  function getMonthKey(y, m) { return y + '-' + pad2(m); }
+  function getMonthLabels(y, m) {
+    var key = y + '-' + pad2(m);
+    var ml = settings.monthLabels || {};
+    var labels = ml[key] || {};
+    return {
+      custom1: labels.custom1 || '위수',
+      custom2: labels.custom2 || '리프트',
+      custom3: labels.custom3 || '기타',
+      custom4: labels.custom4 || '새항목'
+    };
+  }
+  function getCurrentMonthLabels() { return getMonthLabels(currentYear, currentMonth); }
+
+  function getUnitPrice(field) {
+    if (HALF_RATE_FIELDS.indexOf(field) >= 0) return Math.floor((settings.rotPrice || 0) * 0.5);
+    if (SAME_AS_ROT_FIELDS.indexOf(field) >= 0) return Number(settings.rotPrice) || 0;
+    if (field === 'rot') return Number(settings.rotPrice) || 0;
+    var cp = settings.customPrices || [0,0,0,0];
+    if (field === 'custom1') return Number(cp[0]) || 0;
+    if (field === 'custom2') return Number(cp[1]) || 0;
+    if (field === 'custom3') return Number(cp[2]) || 0;
+    if (field === 'custom4') return Number(cp[3]) || 0;
+    return 0;
+  }
+
+  function calcRemainFuel(km, fuel) {
+    return (num(km) * (Number(settings.fuelPerKm) || 0.58)) - num(fuel);
+  }
+  function calcFuelCost(km, fuel) {
+    var remain = calcRemainFuel(km, fuel);
+    var price = Number(settings.fuelPrice) || 0;
+    return Math.round(remain * price);
+  }
+  // 수당합계: 폐수 + 장시간 + 조출 + 야간 + 3~6번째 항목
+  function calcAllowance(it) {
+    return num(it.waste)*getUnitPrice('waste')
+      + num(it.wait)*getUnitPrice('wait')
+      + num(it.early)*getUnitPrice('early')
+      + num(it.night)*getUnitPrice('night')
+      + num(it.custom1)*getUnitPrice('custom1')
+      + num(it.custom2)*getUnitPrice('custom2')
+      + num(it.custom3)*getUnitPrice('custom3')
+      + num(it.custom4)*getUnitPrice('custom4');
+  }
+  // 운반비: 회전수 × 회전단가
+  function calcTransport(it) {
+    return num(it.rot)*getUnitPrice('rot');
+  }
+  function isWorkday(it) {
+    if (!it) return false;
+    for (var i=0; i<NUMBER_FIELDS.length; i++) {
+      if (num(it[NUMBER_FIELDS[i]]) > 0) return true;
+    }
+    return false;
+  }
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, function(c) {
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+
+  function loadSettingsToUI() {
+    $('set-company').value = settings.company || '';
+    $('set-car').value = settings.car || '';
+    $('set-rot-price').value = settings.rotPrice || '';
+    $('set-fuel-price').value = settings.fuelPrice || '';
+    $('set-fuel-per-km').value = settings.fuelPerKm || '';
+    var cp = settings.customPrices || [0,0,0,0];
+    for (var i = 0; i < 4; i++) {
+      var priceEl = $('set-price-' + (i+1));
+      if (priceEl) priceEl.value = cp[i] || '';
+    }
+    var ml = getCurrentMonthLabels();
+    if ($('set-label-1')) $('set-label-1').value = (ml.custom1 === '위수' ? '' : ml.custom1);
+    if ($('set-label-2')) $('set-label-2').value = (ml.custom2 === '리프트' ? '' : ml.custom2);
+    if ($('set-label-3')) $('set-label-3').value = (ml.custom3 === '기타' ? '' : ml.custom3);
+    if ($('set-label-4')) $('set-label-4').value = (ml.custom4 === '새항목' ? '' : ml.custom4);
+    updateAutoPrices();
+  }
+  function updateAutoPrices() {
+    var rot = num($('set-rot-price').value);
+    var half = Math.floor(rot * 0.5);
+    $('set-waste-price').value = rot ? half : '';
+    $('set-early-price').value = rot ? half : '';
+    $('set-night-price').value = rot ? half : '';
+    $('set-wait-price').value = rot || '';
+  }
+  function readSettingsFromUI() {
+    var rot = num($('set-rot-price').value);
+    var half = Math.floor(rot * 0.5);
+    return {
+      company: $('set-company').value.trim(),
+      car: $('set-car').value.trim(),
+      rotPrice: rot, wastePrice: half, earlyPrice: half, nightPrice: half, waitPrice: rot,
+      customPrices: [
+        num($('set-price-1') ? $('set-price-1').value : 0),
+        num($('set-price-2') ? $('set-price-2').value : 0),
+        num($('set-price-3') ? $('set-price-3').value : 0),
+        num($('set-price-4') ? $('set-price-4').value : 0)
+      ],
+      fuelPrice: num($('set-fuel-price').value),
+      fuelPerKm: numF($('set-fuel-per-km').value) || 0.58
+    };
+  }
+
+  function switchTab(t) {
+    var arr = ['cal','list','setting'];
+    for (var i=0; i<arr.length; i++) {
+      var id = arr[i];
+      var b = $('btn-'+id), s = $('tab-'+id);
+      if (b) b.classList.toggle('active', id === t);
+      if (s) s.classList.toggle('active', id === t);
+    }
+    if (t === 'cal') renderCalendar();
+    if (t === 'list') renderList();
+    if (t === 'setting') loadSettingsToUI();
+  }
+
+  function updateLabels() {
+    var ml = getCurrentMonthLabels();
+    var el;
+    el = $('sum-label-1'); if (el) el.innerText = ml.custom1;
+    el = $('sum-label-2'); if (el) el.innerText = ml.custom2;
+    el = $('sum-label-3'); if (el) el.innerText = ml.custom3;
+    el = $('sum-label-4'); if (el) el.innerText = ml.custom4;
+    el = $('label-form-custom1'); if (el) el.innerText = ml.custom1;
+    el = $('label-form-custom2'); if (el) el.innerText = ml.custom2;
+    el = $('label-form-custom3'); if (el) el.innerText = ml.custom3;
+    el = $('label-form-custom4'); if (el) el.innerText = ml.custom4;
+    el = $('th-custom1'); if (el) el.innerText = ml.custom1;
+    el = $('th-custom2'); if (el) el.innerText = ml.custom2;
+    el = $('th-custom3'); if (el) el.innerText = ml.custom3;
+    el = $('th-custom4'); if (el) el.innerText = ml.custom4;
+  }
+
+  function renderCalendar() {
+    updateLabels();
+    $('cal-title').innerText = currentYear + '년 ' + currentMonth + '월';
+    var g = $('calendar-grid');
+    if (!g) return;
+    g.innerHTML = '';
+    var days = ['일','월','화','수','목','금','토'];
+    for (var i=0; i<7; i++) {
+      var h = document.createElement('div');
+      h.className = 'day-header' + (i===0 ? ' sun' : i===6 ? ' sat' : '');
+      h.innerText = days[i];
+      g.appendChild(h);
+    }
+    var firstDow = new Date(currentYear, currentMonth-1, 1).getDay();
+    var lastDate = new Date(currentYear, currentMonth, 0).getDate();
+    var prevLast = new Date(currentYear, currentMonth-1, 0).getDate();
+    var today = new Date();
+    var todayStr = dateStr(today.getFullYear(), today.getMonth()+1, today.getDate());
+    var wds=0, rots=0, kms=0, fuels=0, wastes=0, waits=0, earlies=0, nights=0, c1s=0, c2s=0, c3s=0, c4s=0;
+
+    var fillCell = function(c, ds) {
+      if (db[ds] && num(db[ds].rot) > 0) {
+        var b = document.createElement('div');
+        b.className = 'rot-badge';
+        b.innerText = num(db[ds].rot) + '회';
+        c.appendChild(b);
+      }
+    };
+
+    for (var i2 = firstDow-1; i2 >= 0; i2--) {
+      var d = prevLast - i2;
+      var c = document.createElement('div');
+      c.className = 'day-cell other-month';
+      c.innerText = d;
+      var pm = currentMonth-1 === 0 ? 12 : currentMonth-1;
+      var py = currentMonth-1 === 0 ? currentYear-1 : currentYear;
+      var ds = dateStr(py, pm, d);
+      fillCell(c, ds);
+      (function(y,m){
+        c.onclick = function(){ currentYear = y; currentMonth = m; renderCalendar(); };
+      })(py, pm);
+      g.appendChild(c);
+    }
+
+    for (var d2 = 1; d2 <= lastDate; d2++) {
+      var c2 = document.createElement('div');
+      var dow = new Date(currentYear, currentMonth-1, d2).getDay();
+      var ds2 = dateStr(currentYear, currentMonth, d2);
+      c2.className = 'day-cell' + (dow===0 ? ' sun' : dow===6 ? ' sat' : '');
+      if (ds2 === todayStr) c2.classList.add('today');
+      var lb = document.createElement('span');
+      lb.innerText = d2;
+      c2.appendChild(lb);
+      var it = db[ds2];
+      if (it && num(it.rot) > 0) {
+        var b2 = document.createElement('div');
+        b2.className = 'rot-badge';
+        b2.innerText = num(it.rot) + '회';
+        c2.appendChild(b2);
+      }
+      if (isWorkday(it)) {
+        wds++; rots += num(it.rot); kms += num(it.km); fuels += num(it.fuel);
+        wastes += num(it.waste); waits += num(it.wait); earlies += num(it.early);
+        nights += num(it.night); c1s += num(it.custom1); c2s += num(it.custom2);
+        c3s += num(it.custom3); c4s += num(it.custom4);
+      }
+      (function(dsx){
+        c2.onclick = function(){ openModal(dsx); };
+      })(ds2);
+      g.appendChild(c2);
+    }
+
+    var totalCells = firstDow + lastDate;
+    var remain = (7 - (totalCells % 7)) % 7;
+    for (var i3 = 1; i3 <= remain; i3++) {
+      var c3 = document.createElement('div');
+      c3.className = 'day-cell other-month';
+      c3.innerText = i3;
+      var nm = currentMonth+1 === 13 ? 1 : currentMonth+1;
+      var ny = currentMonth+1 === 13 ? currentYear+1 : currentYear;
+      var ds3 = dateStr(ny, nm, i3);
+      fillCell(c3, ds3);
+      (function(y,m){
+        c3.onclick = function(){ currentYear = y; currentMonth = m; renderCalendar(); };
+      })(ny, nm);
+      g.appendChild(c3);
+    }
+
+    $('sum-workdays').innerText = wds;
+    $('sum-rounds').innerText = rots;
+    $('sum-km').innerText = toLocale(kms);
+    $('sum-fuel').innerText = toLocale(fuels);
+    $('sum-kml').innerText = fuels > 0 ? (kms/fuels).toFixed(1) : '0.0';
+    var remainL = calcRemainFuel(kms, fuels);
+    $('sum-remain-l').innerText = remainL.toFixed(1);
+    $('sum-waste').innerText = wastes;
+    $('sum-wait').innerText = waits;
+    $('sum-early').innerText = earlies;
+    $('sum-night').innerText = nights;
+    $('sum-custom1').innerText = c1s;
+    $('sum-custom2').innerText = c2s;
+    $('sum-custom3').innerText = c3s;
+    $('sum-custom4').innerText = c4s;
+
+    // 수당합계: 폐수 + 장시간 + 조출 + 야간 + 4항목
+    var allowance = wastes*getUnitPrice('waste')
+      + waits*getUnitPrice('wait')
+      + earlies*getUnitPrice('early')
+      + nights*getUnitPrice('night')
+      + c1s*getUnitPrice('custom1') + c2s*getUnitPrice('custom2')
+      + c3s*getUnitPrice('custom3') + c4s*getUnitPrice('custom4');
+    // 운반비: 회전수 × 회전단가
+    var transport = rots*getUnitPrice('rot');
+    // 유류대: 남은주유량 × 주유단가
+    var price = Number(settings.fuelPrice) || 0;
+    var fuelCost = Math.round(remainL * price);
+
+    $('sum-transport').innerText = toLocale(transport);
+    $('sum-allowance').innerText = toLocale(allowance);
+    $('sum-rem-fuel').innerText = toLocale(fuelCost) + '원';
+    $('sum-total').innerText = toLocale(transport + allowance + fuelCost);
+  }
+
+  function openModal(ds) {
+    updateLabels();
+    $('form-date').value = ds;
+    var it = db[ds] || {};
+    for (var i=0; i<NUMBER_FIELDS.length; i++) {
+      var k = NUMBER_FIELDS[i];
+      var el = $('form-'+k);
+      if (el) el.value = it[k] !== undefined && it[k] !== 0 ? it[k] : '';
+    }
+    $('form-memo').value = it.memo || '';
+    $('modal').classList.add('show');
+    $('btn-delete-data').style.display = db[ds] ? 'block' : 'none';
+  }
+  function closeModal() { $('modal').classList.remove('show'); }
+
+  function renderList() {
+    updateLabels();
+    $('list-year-title').innerText = currentYear + '년 리스트';
+    var tb = $('list-tbody'), tf = $('list-tfoot');
+    tb.innerHTML = '';
+    tf.innerHTML = '';
+    var mb = $('month-bar');
+    mb.innerHTML = '';
+    for (var m = 1; m <= 12; m++) {
+      var b = document.createElement('button');
+      b.innerText = m + '월';
+      if (m === currentMonth) b.classList.add('active');
+      (function(mm){
+        b.onclick = function(){ currentMonth = mm; renderList(); };
+      })(m);
+      mb.appendChild(b);
+    }
+    var prefix = currentYear + '-' + pad2(currentMonth);
+    var keys = Object.keys(db).filter(function(k){ return k.indexOf(prefix) === 0; }).sort();
+    var t = {rot:0,km:0,fuel:0,waste:0,wait:0,early:0,night:0,custom1:0,custom2:0,custom3:0,custom4:0,allo:0,trans:0};
+    if (keys.length === 0) {
+      var tr0 = document.createElement('tr');
+      tr0.innerHTML = '<td colspan="17" class="empty-msg">해당 월 데이터가 없습니다.</td>';
+      tb.appendChild(tr0);
+      return;
+    }
+    keys.forEach(function(ds){
+      var it = db[ds];
+      var allo = calcAllowance(it), trans = calcTransport(it), fc = calcFuelCost(it.km, it.fuel);
+      NUMBER_FIELDS.forEach(function(k){ t[k] += num(it[k]); });
+      t.allo += allo;
+      t.trans += trans;
+      var tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td>' + ds.slice(2) + '</td>' +
+        '<td>' + num(it.rot) + '</td>' +
+        '<td>' + num(it.km) + '</td>' +
+        '<td>' + num(it.fuel) + '</td>' +
+        '<td>' + num(it.waste) + '</td>' +
+        '<td>' + num(it.wait) + '</td>' +
+        '<td>' + num(it.early) + '</td>' +
+        '<td>' + num(it.night) + '</td>' +
+        '<td>' + num(it.custom1) + '</td>' +
+        '<td>' + num(it.custom2) + '</td>' +
+        '<td>' + num(it.custom3) + '</td>' +
+        '<td>' + num(it.custom4) + '</td>' +
+        '<td>' + toLocale(allo) + '</td>' +
+        '<td>' + toLocale(trans) + '</td>' +
+        '<td>' + toLocale(fc) + '</td>' +
+        '<td>' + toLocale(allo + trans + fc) + '</td>' +
+        '<td style="text-align:left;max-width:180px;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(it.memo || '') + '</td>';
+      (function(dsx){
+        tr.onclick = function(){ openModal(dsx); };
+      })(ds);
+      tb.appendChild(tr);
+    });
+    var tfc = calcFuelCost(t.km, t.fuel);
+    var trf = document.createElement('tr');
+    trf.innerHTML =
+      '<td>합계</td>' +
+      '<td>' + t.rot + '</td>' +
+      '<td>' + t.km + '</td>' +
+      '<td>' + t.fuel + '</td>' +
+      '<td>' + t.waste + '</td>' +
+      '<td>' + t.wait + '</td>' +
+      '<td>' + t.early + '</td>' +
+      '<td>' + t.night + '</td>' +
+      '<td>' + t.custom1 + '</td>' +
+      '<td>' + t.custom2 + '</td>' +
+      '<td>' + t.custom3 + '</td>' +
+      '<td>' + t.custom4 + '</td>' +
+      '<td>' + toLocale(t.allo) + '</td>' +
+      '<td>' + toLocale(t.trans) + '</td>' +
+      '<td>' + toLocale(tfc) + '</td>' +
+      '<td>' + toLocale(t.allo + t.trans + tfc) + '</td>' +
+      '<td></td>';
+    tf.appendChild(trf);
+  }
+
+  function exportToCSV() {
+    var prefix = currentYear + '-' + pad2(currentMonth);
+    var keys = Object.keys(db).filter(function(k){ return k.indexOf(prefix) === 0; }).sort();
+    if (keys.length === 0) { alert('데이터가 없습니다.'); return; }
+    var esc = function(v) {
+      var s = String(v === undefined || v === null ? '' : v);
+      return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+    };
+    var ml = getCurrentMonthLabels();
+    var csv = '\uFEFF날짜,회전,거리,주유,폐수,장시간,조출,야간,' + ml.custom1 + ',' + ml.custom2 + ',' + ml.custom3 + ',' + ml.custom4 + ',수당합계,운반비,유류대,총합계,메모\n';
+    keys.forEach(function(ds){
+      var it = db[ds], allo = calcAllowance(it), trans = calcTransport(it), fc = calcFuelCost(it.km, it.fuel);
+      csv += [ds, num(it.rot), num(it.km), num(it.fuel), num(it.waste), num(it.wait),
+        num(it.early), num(it.night), num(it.custom1), num(it.custom2), num(it.custom3), num(it.custom4),
+        allo, trans, fc, allo + trans + fc, it.memo || ''].map(esc).join(',') + '\n';
+    });
+    var blob = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = '레미콘운행일지_' + currentYear + '년' + pad2(currentMonth) + '월.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+  }
+
+  function backup() {
+    var obj = { version: 1, db: db, settings: settings };
+    var s = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(obj, null, 2));
+    var a = document.createElement('a');
+    a.href = s;
+    a.download = 'remicon_backup_' + new Date().toISOString().slice(0,10) + '.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+
+  function restore(file) {
+    var r = new FileReader();
+    r.onload = function(e) {
+      try {
+        var c = JSON.parse(e.target.result);
+        if (c.db) {
+          db = c.db;
+          localStorage.setItem(DB_KEY, JSON.stringify(db));
+        }
+        if (c.settings) {
+          ['outPrice','liftPrice','etcPrice','labelOutskirt','labelLift','labelEtc'].forEach(function(lk) {
+            if (c.settings[lk] !== undefined) settings[lk] = c.settings[lk];
+          });
+          for (var k in DEFAULT_SETTINGS) {
+            if (c.settings[k] !== undefined) settings[k] = c.settings[k];
+            else settings[k] = DEFAULT_SETTINGS[k];
+          }
+          settings.monthLabels = c.settings.monthLabels || {};
+          settings.customPrices = c.settings.customPrices || [0,0,0,0];
+          settings.wastePrice = Math.floor((settings.rotPrice || 0) * 0.5);
+          settings.earlyPrice = Math.floor((settings.rotPrice || 0) * 0.5);
+          settings.nightPrice = Math.floor((settings.rotPrice || 0) * 0.5);
+          settings.waitPrice = settings.rotPrice || 0;
+          if (!settings.fuelPerKm) settings.fuelPerKm = 0.58;
+          localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+        }
+        migrateData(db, settings);
+        localStorage.setItem(DB_KEY, JSON.stringify(db));
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+        loadSettingsToUI();
+        renderCalendar();
+        alert('복원 완료!');
+      } catch(err) {
+        alert('파일 오류');
+      }
+    };
+    r.readAsText(file);
+  }
+
+  function resetAll() {
+    if (!confirm('모든 데이터를 초기화하시겠습니까?')) return;
+    if (!confirm('정말 되돌릴 수 없습니다.')) return;
+    db = {};
+    for (var k in DEFAULT_SETTINGS) settings[k] = DEFAULT_SETTINGS[k];
+    settings.customPrices = [0,0,0,0];
+    settings.monthLabels = {};
+    localStorage.setItem(DB_KEY, JSON.stringify(db));
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+    loadSettingsToUI();
+    renderCalendar();
+    alert('초기화 완료');
+  }
+
+  $('btn-cal').onclick = function(){ switchTab('cal'); };
+  $('btn-list').onclick = function(){ switchTab('list'); };
+  $('btn-setting').onclick = function(){ switchTab('setting'); };
+  $('btn-prev-m').onclick = function(){ currentMonth--; if (currentMonth < 1) { currentMonth = 12; currentYear--; } renderCalendar(); };
+  $('btn-next-m').onclick = function(){ currentMonth++; if (currentMonth > 12) { currentMonth = 1; currentYear++; } renderCalendar(); };
+  $('btn-prev-y').onclick = function(){ currentYear--; renderList(); };
+  $('btn-next-y').onclick = function(){ currentYear++; renderList(); };
+  $('set-rot-price').addEventListener('input', updateAutoPrices);
+  $('btn-save-settings').onclick = function() {
+    var newSettings = readSettingsFromUI();
+    newSettings.monthLabels = settings.monthLabels || {};
+    var key = getMonthKey(currentYear, currentMonth);
+    newSettings.monthLabels[key] = {
+      custom1: ($('set-label-1') ? $('set-label-1').value.trim() : ''),
+      custom2: ($('set-label-2') ? $('set-label-2').value.trim() : ''),
+      custom3: ($('set-label-3') ? $('set-label-3').value.trim() : ''),
+      custom4: ($('set-label-4') ? $('set-label-4').value.trim() : '')
+    };
+    settings = newSettings;
+    saveSettings();
+    alert('설정 저장 완료!');
+    switchTab('cal');
+  };
+  $('btn-save-data').onclick = function() {
+    var ds = $('form-date').value;
+    if (!ds) return;
+    var item = { memo: $('form-memo').value || '' };
+    NUMBER_FIELDS.forEach(function(k){ item[k] = num($('form-'+k).value); });
+    db[ds] = item;
+    saveDb();
+    closeModal();
+    renderCalendar();
+  };
+  $('btn-delete-data').onclick = function() {
+    var ds = $('form-date').value;
+    if (!ds || !db[ds]) return;
+    if (!confirm(ds + ' 삭제?')) return;
+    delete db[ds];
+    saveDb();
+    closeModal();
+    renderCalendar();
+  };
+  $('btn-close-modal').onclick = closeModal;
+  $('btn-excel').onclick = exportToCSV;
+  $('btn-backup').onclick = backup;
+  $('btn-reset').onclick = resetAll;
+  $('btn-restore-trigger').onclick = function(){ $('restore-file').click(); };
+  $('restore-file').onchange = function(e) {
+    var f = e.target.files[0];
+    if (f) restore(f);
+    e.target.value = '';
+  };
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && $('modal').classList.contains('show')) closeModal();
+  });
+  $('modal').addEventListener('click', function(e) {
+    if (e.target === $('modal')) closeModal();
+  });
+  document.querySelectorAll('input[type="number"]').forEach(function(el) {
+    el.addEventListener('focus', function(){ el.select(); });
+  });
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('service-worker.js').catch(function(){});
+  }
+
+  loadSettingsToUI();
+  renderCalendar();
+});
+</script>
+</body>
+</html>
